@@ -1,0 +1,440 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model accesos {
+  id_acceso      Int              @id @default(autoincrement()) @db.UnsignedInt
+  id_estacion    Int              @db.UnsignedInt
+  nombre         String?          @db.VarChar(100)
+  descripcion    String?          @db.VarChar(150)
+  estado         Boolean          @default(true)
+  estaciones     estaciones       @relation(fields: [id_estacion], references: [id_estacion], onUpdate: Restrict, map: "fk_acceso_estacion")
+  guardia_acceso guardia_acceso[]
+
+  @@index([id_estacion], map: "fk_acceso_estacion")
+}
+
+model alertas {
+  id_alerta   BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  id_bus      Int?        @db.UnsignedInt
+  id_estacion Int?        @db.UnsignedInt
+  tipo        String      @db.VarChar(50)
+  descripcion String?     @db.VarChar(200)
+  fecha_hora  DateTime    @default(now()) @db.DateTime(0)
+  estado      String      @default("PENDIENTE") @db.VarChar(20)
+  buses       buses?      @relation(fields: [id_bus], references: [id_bus], onUpdate: Restrict, map: "fk_alerta_bus")
+  estaciones  estaciones? @relation(fields: [id_estacion], references: [id_estacion], onUpdate: Restrict, map: "fk_alerta_estacion")
+
+  @@index([id_bus], map: "fk_alerta_bus")
+  @@index([id_estacion], map: "fk_alerta_estacion")
+}
+
+model asientos {
+  id_asiento       Int                       @id @default(autoincrement()) @db.UnsignedInt
+  id_bus           Int                       @db.UnsignedInt
+  numero_asiento   String                    @db.VarChar(10)
+  estado_operativo asientos_estado_operativo @default(HABILITADO)
+  buses            buses                     @relation(fields: [id_bus], references: [id_bus], onDelete: Cascade, onUpdate: Restrict, map: "fk_asiento_bus")
+  tickets          tickets[]
+
+  @@unique([id_bus, numero_asiento], map: "uk_bus_asiento")
+}
+
+model bitacora {
+  id_bitacora    BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  id_usuario     Int      @db.UnsignedInt
+  accion         String   @db.VarChar(100)
+  tabla_afectada String?  @db.VarChar(50)
+  registro_id    BigInt?  @db.UnsignedBigInt
+  fecha_hora     DateTime @default(now()) @db.DateTime(0)
+  detalle        String?  @db.Text
+  usuarios       usuarios @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Restrict, map: "fk_bitacora_usuario")
+
+  @@index([fecha_hora], map: "idx_bitacora_fecha")
+  @@index([id_usuario], map: "idx_bitacora_usuario")
+}
+
+model bus_linea_historial {
+  id_asignacion BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  id_bus        Int       @db.UnsignedInt
+  id_linea      Int       @db.UnsignedInt
+  fecha_inicio  DateTime  @db.DateTime(0)
+  fecha_fin     DateTime? @db.DateTime(0)
+  bus_actual    Int?      @unique(map: "uk_bus_linea_actual") @db.UnsignedInt
+  buses         buses     @relation(fields: [id_bus], references: [id_bus], onUpdate: Restrict, map: "fk_bus_linea_bus")
+  lineas        lineas    @relation(fields: [id_linea], references: [id_linea], onUpdate: Restrict, map: "fk_bus_linea_linea")
+
+  @@index([id_bus], map: "idx_bus_linea_bus")
+  @@index([id_linea], map: "idx_bus_linea_linea")
+}
+
+model bus_parqueo_historial {
+  id_asignacion BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  id_bus        Int       @db.UnsignedInt
+  id_parqueo    Int       @db.UnsignedInt
+  fecha_inicio  DateTime  @db.DateTime(0)
+  fecha_fin     DateTime? @db.DateTime(0)
+  bus_actual    Int?      @unique(map: "uk_bus_parqueo_actual") @db.UnsignedInt
+  buses         buses     @relation(fields: [id_bus], references: [id_bus], onUpdate: Restrict, map: "fk_bus_parqueo_bus")
+  parqueos      parqueos  @relation(fields: [id_parqueo], references: [id_parqueo], onUpdate: Restrict, map: "fk_bus_parqueo_parqueo")
+
+  @@index([id_bus], map: "idx_bus_parqueo_bus")
+  @@index([id_parqueo], map: "idx_bus_parqueo_parqueo")
+}
+
+model buses {
+  id_bus                Int                     @id @default(autoincrement()) @db.UnsignedInt
+  codigo                String                  @unique(map: "codigo") @db.VarChar(20)
+  placa                 String                  @unique(map: "placa") @db.VarChar(20)
+  marca                 String?                 @db.VarChar(50)
+  modelo                String?                 @db.VarChar(50)
+  capacidad_maxima      Int                     @db.UnsignedInt
+  estado                buses_estado            @default(ACTIVO)
+  alertas               alertas[]
+  asientos              asientos[]
+  bus_linea_historial   bus_linea_historial[]
+  bus_parqueo_historial bus_parqueo_historial[]
+  recorridos            recorridos[]
+}
+
+model estaciones {
+  id_estacion                                     Int                  @id @default(autoincrement()) @db.UnsignedInt
+  codigo                                          String               @unique(map: "codigo") @db.VarChar(20)
+  nombre                                          String               @db.VarChar(100)
+  capacidad_maxima                                Int?                 @db.UnsignedInt
+  estado                                          Boolean              @default(true)
+  created_at                                      DateTime?            @default(now()) @db.Timestamp(0)
+  updated_at                                      DateTime?            @default(now()) @db.Timestamp(0)
+  pasajeros_esperando                             Int                  @default(0) @db.UnsignedInt
+  accesos                                         accesos[]
+  alertas                                         alertas[]
+  linea_estacion                                  linea_estacion[]
+  operador_estacion                               operador_estacion[]
+  recorrido_estacion                              recorrido_estacion[]
+  tickets_tickets_id_estacion_destinoToestaciones tickets[]            @relation("tickets_id_estacion_destinoToestaciones")
+  tickets_tickets_id_estacion_ingresoToestaciones tickets[]            @relation("tickets_id_estacion_ingresoToestaciones")
+}
+
+model guardia_acceso {
+  id_asignacion BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  id_guardia    Int       @db.UnsignedInt
+  id_acceso     Int       @db.UnsignedInt
+  fecha_inicio  DateTime  @db.DateTime(0)
+  fecha_fin     DateTime? @db.DateTime(0)
+  turno         String?   @db.VarChar(30)
+  accesos       accesos   @relation(fields: [id_acceso], references: [id_acceso], onUpdate: Restrict, map: "fk_guardia_acceso_acceso")
+  guardias      guardias  @relation(fields: [id_guardia], references: [id_guardia], onUpdate: Restrict, map: "fk_guardia_acceso_guardia")
+
+  @@index([id_acceso], map: "fk_guardia_acceso_acceso")
+  @@index([id_guardia], map: "fk_guardia_acceso_guardia")
+}
+
+model guardias {
+  id_guardia     Int              @id @default(autoincrement()) @db.UnsignedInt
+  nombres        String           @db.VarChar(100)
+  apellidos      String           @db.VarChar(100)
+  telefono       String?          @db.VarChar(20)
+  estado         Boolean          @default(true)
+  guardia_acceso guardia_acceso[]
+}
+
+model linea_estacion {
+  id_linea              Int        @db.UnsignedInt
+  id_estacion           Int        @db.UnsignedInt
+  orden                 Int        @db.UnsignedInt
+  distancia_anterior_km Decimal?   @db.Decimal(8, 2)
+  estaciones            estaciones @relation(fields: [id_estacion], references: [id_estacion], onUpdate: Restrict, map: "fk_linea_estacion_estacion")
+  lineas                lineas     @relation(fields: [id_linea], references: [id_linea], onUpdate: Restrict, map: "fk_linea_estacion_linea")
+
+  @@id([id_linea, id_estacion])
+  @@unique([id_linea, orden], map: "uk_linea_orden")
+  @@index([id_estacion], map: "fk_linea_estacion_estacion")
+}
+
+model lineas {
+  id_linea            Int                   @id @default(autoincrement()) @db.UnsignedInt
+  codigo              String                @unique(map: "codigo") @db.VarChar(20)
+  nombre              String                @db.VarChar(100)
+  descripcion         String?               @db.VarChar(200)
+  estado              Boolean               @default(true)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(0)
+  bus_linea_historial bus_linea_historial[]
+  linea_estacion      linea_estacion[]
+  municipalidad_linea municipalidad_linea[]
+  recorridos          recorridos[]
+}
+
+model metodos_pago {
+  id_metodo_pago Int        @id @default(autoincrement()) @db.UnsignedInt
+  nombre         String     @unique(map: "nombre") @db.VarChar(50)
+  descripcion    String?    @db.VarChar(150)
+  estado         Boolean    @default(true)
+  pagos          pagos[]
+  recargas       recargas[]
+}
+
+model municipalidad_linea {
+  id_municipalidad Int             @db.UnsignedInt
+  id_linea         Int             @db.UnsignedInt
+  lineas           lineas          @relation(fields: [id_linea], references: [id_linea], onUpdate: Restrict, map: "fk_municipalidad_linea_linea")
+  municipalidades  municipalidades @relation(fields: [id_municipalidad], references: [id_municipalidad], onUpdate: Restrict, map: "fk_municipalidad_linea_municipalidad")
+
+  @@id([id_municipalidad, id_linea])
+  @@index([id_linea], map: "fk_municipalidad_linea_linea")
+}
+
+model municipalidades {
+  id_municipalidad    Int                   @id @default(autoincrement()) @db.UnsignedInt
+  nombre              String                @db.VarChar(100)
+  direccion           String?               @db.VarChar(150)
+  telefono            String?               @db.VarChar(20)
+  estado              Boolean               @default(true)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(0)
+  municipalidad_linea municipalidad_linea[]
+}
+
+model operador_estacion {
+  id_asignacion BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  id_usuario    Int        @db.UnsignedInt
+  id_estacion   Int        @db.UnsignedInt
+  fecha_inicio  DateTime   @db.DateTime(0)
+  fecha_fin     DateTime?  @db.DateTime(0)
+  estaciones    estaciones @relation(fields: [id_estacion], references: [id_estacion], onUpdate: Restrict, map: "fk_operador_estacion_estacion")
+  usuarios      usuarios   @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Restrict, map: "fk_operador_estacion_usuario")
+
+  @@index([id_estacion], map: "fk_operador_estacion_estacion")
+  @@index([id_usuario], map: "fk_operador_estacion_usuario")
+}
+
+model pagos {
+  id_pago        BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  id_ticket      BigInt       @unique(map: "uk_pago_ticket") @db.UnsignedBigInt
+  id_metodo_pago Int          @db.UnsignedInt
+  id_tarjeta     BigInt?      @db.UnsignedBigInt
+  monto          Decimal      @db.Decimal(10, 2)
+  fecha_hora     DateTime     @default(now()) @db.DateTime(0)
+  estado         String       @default("APROBADO") @db.VarChar(20)
+  metodos_pago   metodos_pago @relation(fields: [id_metodo_pago], references: [id_metodo_pago], onUpdate: Restrict, map: "fk_pago_metodo_pago")
+  tarjetas       tarjetas?    @relation(fields: [id_tarjeta], references: [id_tarjeta], onDelete: Restrict, onUpdate: Restrict, map: "fk_pago_tarjeta")
+  tickets        tickets      @relation(fields: [id_ticket], references: [id_ticket], onUpdate: Restrict, map: "fk_pago_ticket")
+
+  @@index([id_metodo_pago], map: "fk_pago_metodo_pago")
+  @@index([id_tarjeta], map: "fk_pago_tarjeta")
+}
+
+model parqueos {
+  id_parqueo            Int                     @id @default(autoincrement()) @db.UnsignedInt
+  codigo                String?                 @unique(map: "codigo") @db.VarChar(20)
+  nombre                String                  @db.VarChar(100)
+  ubicacion             String?                 @db.VarChar(150)
+  capacidad             Int?                    @db.UnsignedInt
+  estado                Boolean                 @default(true)
+  bus_parqueo_historial bus_parqueo_historial[]
+}
+
+model pasajeros {
+  id_pasajero Int       @id @default(autoincrement()) @db.UnsignedInt
+  nombres     String    @db.VarChar(150)
+  documento   String?   @db.VarChar(30)
+  telefono    String?   @db.VarChar(20)
+  tickets     tickets[]
+}
+
+model piloto_formacion {
+  id_formacion       Int       @id @default(autoincrement()) @db.UnsignedInt
+  id_piloto          Int       @db.UnsignedInt
+  nivel              String?   @db.VarChar(50)
+  institucion        String?   @db.VarChar(150)
+  titulo             String?   @db.VarChar(150)
+  fecha_finalizacion DateTime? @db.Date
+  pilotos            pilotos   @relation(fields: [id_piloto], references: [id_piloto], onDelete: Cascade, onUpdate: Restrict, map: "fk_formacion_piloto")
+
+  @@index([id_piloto], map: "fk_formacion_piloto")
+}
+
+model pilotos {
+  id_piloto        Int                @id @default(autoincrement()) @db.UnsignedInt
+  nombres          String             @db.VarChar(100)
+  apellidos        String             @db.VarChar(100)
+  dpi              String?            @unique(map: "dpi") @db.VarChar(20)
+  residencia       String?            @db.VarChar(150)
+  telefono         String?            @db.VarChar(20)
+  correo           String?            @db.VarChar(120)
+  estado           Boolean            @default(true)
+  piloto_formacion piloto_formacion[]
+  recorridos       recorridos[]
+  usuarios         usuarios?
+}
+
+model recargas {
+  id_recarga     BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  id_tarjeta     BigInt       @db.UnsignedBigInt
+  id_usuario     Int          @db.UnsignedInt
+  id_metodo_pago Int          @db.UnsignedInt
+  monto          Decimal      @db.Decimal(10, 2)
+  fecha_hora     DateTime     @default(now()) @db.DateTime(0)
+  estado         String?      @default("APLICADA") @db.VarChar(20)
+  metodos_pago   metodos_pago @relation(fields: [id_metodo_pago], references: [id_metodo_pago], onUpdate: Restrict, map: "fk_recarga_metodo_pago")
+  tarjetas       tarjetas     @relation(fields: [id_tarjeta], references: [id_tarjeta], onUpdate: Restrict, map: "fk_recarga_tarjeta")
+  usuarios       usuarios     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Restrict, map: "fk_recarga_usuario")
+
+  @@index([id_metodo_pago], map: "fk_recarga_metodo_pago")
+  @@index([id_tarjeta], map: "fk_recarga_tarjeta")
+  @@index([id_usuario], map: "fk_recarga_usuario")
+}
+
+model recorrido_estacion {
+  id_recorrido_estacion BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  id_recorrido          BigInt     @db.UnsignedBigInt
+  id_estacion           Int        @db.UnsignedInt
+  orden                 Int        @db.UnsignedInt
+  hora_llegada          DateTime?  @db.DateTime(0)
+  hora_salida           DateTime?  @db.DateTime(0)
+  estaciones            estaciones @relation(fields: [id_estacion], references: [id_estacion], onUpdate: Restrict, map: "fk_recorrido_estacion_estacion")
+  recorridos            recorridos @relation(fields: [id_recorrido], references: [id_recorrido], onDelete: Cascade, onUpdate: Restrict, map: "fk_recorrido_estacion_recorrido")
+
+  @@unique([id_recorrido, id_estacion], map: "uk_recorrido_estacion")
+  @@unique([id_recorrido, orden], map: "uk_recorrido_orden")
+  @@index([id_estacion], map: "fk_recorrido_estacion_estacion")
+}
+
+model recorridos {
+  salida_programada DateTime? @db.DateTime(0)
+  llegada_estimada DateTime? @db.DateTime(0)
+
+  @@index([salida_programada], map: "idx_recorrido_salida")
+  id_recorrido       BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  id_linea           Int                  @db.UnsignedInt
+  id_bus             Int                  @db.UnsignedInt
+  id_piloto          Int                  @db.UnsignedInt
+  fecha              DateTime             @db.Date
+  hora_inicio        DateTime?            @db.Time(0)
+  hora_fin           DateTime?            @db.Time(0)
+  estado             recorridos_estado    @default(PROGRAMADO)
+  bus_en_curso       Int?                 @unique(map: "uk_bus_en_curso") @db.UnsignedInt
+  piloto_en_curso    Int?                 @unique(map: "uk_piloto_en_curso") @db.UnsignedInt
+  recorrido_estacion recorrido_estacion[]
+  buses              buses                @relation(fields: [id_bus], references: [id_bus], onUpdate: Restrict, map: "fk_recorrido_bus")
+  lineas             lineas               @relation(fields: [id_linea], references: [id_linea], onUpdate: Restrict, map: "fk_recorrido_linea")
+  pilotos            pilotos              @relation(fields: [id_piloto], references: [id_piloto], onUpdate: Restrict, map: "fk_recorrido_piloto")
+  tickets            tickets[]
+
+  @@index([id_linea], map: "fk_recorrido_linea")
+  @@index([id_piloto], map: "fk_recorrido_piloto")
+  @@index([id_bus], map: "idx_recorrido_bus")
+  @@index([fecha], map: "idx_recorrido_fecha")
+}
+
+model roles {
+  id_rol      Int           @id @default(autoincrement()) @db.UnsignedInt
+  nombre      String        @unique(map: "nombre") @db.VarChar(50)
+  descripcion String?       @db.VarChar(150)
+  usuario_rol usuario_rol[]
+}
+
+model tarjetas {
+  id_tarjeta     BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  numero_tarjeta String          @unique(map: "numero_tarjeta") @db.VarChar(50)
+  saldo          Decimal         @default(0.00) @db.Decimal(10, 2)
+  estado         tarjetas_estado @default(ACTIVA)
+  pagos          pagos[]
+  recargas       recargas[]
+}
+
+model tickets {
+  id_ticket                                          BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  numero_ticket                                      String         @unique(map: "numero_ticket") @db.VarChar(50)
+  id_recorrido                                       BigInt         @db.UnsignedBigInt
+  id_asiento                                         Int            @db.UnsignedInt
+  id_operador                                        Int            @db.UnsignedInt
+  id_estacion_ingreso                                Int            @db.UnsignedInt
+  id_estacion_destino                                Int            @db.UnsignedInt
+  fecha_hora_emision                                 DateTime       @default(now()) @db.DateTime(0)
+  precio                                             Decimal        @db.Decimal(10, 2)
+  codigo_validacion                                  String?        @unique(map: "codigo_validacion") @db.VarChar(100)
+  estado                                             tickets_estado @default(EMITIDO)
+  id_pasajero                                        Int            @db.UnsignedInt
+  reservado_hasta                                    DateTime?      @db.DateTime(0)
+  asiento_activo                                     Int?           @db.UnsignedInt
+  pagos                                              pagos?
+  asientos                                           asientos       @relation(fields: [id_asiento], references: [id_asiento], onUpdate: Restrict, map: "fk_ticket_asiento")
+  estaciones_tickets_id_estacion_destinoToestaciones estaciones     @relation("tickets_id_estacion_destinoToestaciones", fields: [id_estacion_destino], references: [id_estacion], onUpdate: Restrict, map: "fk_ticket_estacion_destino")
+  estaciones_tickets_id_estacion_ingresoToestaciones estaciones     @relation("tickets_id_estacion_ingresoToestaciones", fields: [id_estacion_ingreso], references: [id_estacion], onUpdate: Restrict, map: "fk_ticket_estacion_ingreso")
+  usuarios                                           usuarios       @relation(fields: [id_operador], references: [id_usuario], onUpdate: Restrict, map: "fk_ticket_operador")
+  pasajeros                                          pasajeros      @relation(fields: [id_pasajero], references: [id_pasajero], onUpdate: Restrict, map: "fk_ticket_pasajero")
+  recorridos                                         recorridos     @relation(fields: [id_recorrido], references: [id_recorrido], onUpdate: Restrict, map: "fk_ticket_recorrido")
+
+  @@unique([id_recorrido, asiento_activo], map: "uk_ticket_asiento_activo")
+  @@index([id_estacion_destino], map: "fk_ticket_estacion_destino")
+  @@index([id_estacion_ingreso], map: "fk_ticket_estacion_ingreso")
+  @@index([id_pasajero], map: "fk_ticket_pasajero")
+  @@index([id_asiento], map: "idx_ticket_asiento")
+  @@index([id_operador], map: "idx_ticket_operador")
+  @@index([id_recorrido], map: "idx_ticket_recorrido")
+}
+
+model usuario_rol {
+  id_usuario Int      @db.UnsignedInt
+  id_rol     Int      @db.UnsignedInt
+  roles      roles    @relation(fields: [id_rol], references: [id_rol], onUpdate: Restrict, map: "fk_usuario_rol_rol")
+  usuarios   usuarios @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "fk_usuario_rol_usuario")
+
+  @@id([id_usuario, id_rol])
+  @@index([id_rol], map: "fk_usuario_rol_rol")
+}
+
+model usuarios {
+  id_usuario        Int                 @id @default(autoincrement()) @db.UnsignedInt
+  username          String              @unique(map: "username") @db.VarChar(50)
+  password_hash     String              @db.VarChar(255)
+  nombres           String?             @db.VarChar(100)
+  apellidos         String?             @db.VarChar(100)
+  estado            Boolean             @default(true)
+  ultimo_acceso     DateTime?           @db.DateTime(0)
+  id_piloto         Int?                @unique(map: "id_piloto") @db.UnsignedInt
+  bitacora          bitacora[]
+  operador_estacion operador_estacion[]
+  recargas          recargas[]
+  tickets           tickets[]
+  usuario_rol       usuario_rol[]
+  pilotos           pilotos?            @relation(fields: [id_piloto], references: [id_piloto], onDelete: Restrict, onUpdate: Restrict, map: "fk_usuario_piloto")
+}
+
+enum asientos_estado_operativo {
+  HABILITADO
+  FUERA_SERVICIO
+}
+
+enum tarjetas_estado {
+  ACTIVA
+  BLOQUEADA
+  INACTIVA
+}
+
+enum buses_estado {
+  ACTIVO
+  INACTIVO
+  MANTENIMIENTO
+  FUERA_SERVICIO
+}
+
+enum recorridos_estado {
+  PROGRAMADO
+  EN_CURSO
+  FINALIZADO
+  CANCELADO
+}
+
+enum tickets_estado {
+  RESERVADO
+  EMITIDO
+  CANCELADO
+  FINALIZADO
+}

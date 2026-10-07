@@ -1,0 +1,12 @@
+{
+  "name": "transmetro",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "start:local": "node scripts/start-local.cjs",
+    "seed": "npm run db:seed --prefix backend",
+    "test": "npm test --prefix backend"
+  }
+}
