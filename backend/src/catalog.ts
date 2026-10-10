@@ -3,7 +3,7 @@ import { Db, Actor } from './db';
 import { authorize, AuthGuard } from './auth';
 import { catalogMeta } from './catalog-meta';
 import { hash } from 'bcrypt';
-import { IsArray, IsInt, IsOptional, IsString, Length, ArrayNotEmpty, ArrayUnique, IsIn, Min } from 'class-validator';
+import { IsBoolean, IsArray, IsInt, IsOptional, IsString, Length, ArrayNotEmpty, ArrayUnique, IsIn, Min } from 'class-validator';
 const roles=['ADMINISTRADOR','SUPERVISOR','OPERADOR','SEGURIDAD','FINANCIERO','PILOTO'];
 class UserDto {
  @IsString() @Length(3,50) username!:string;
@@ -11,6 +11,12 @@ class UserDto {
  @IsString() @Length(1,100) nombres!:string;
  @IsArray() @ArrayNotEmpty() @ArrayUnique() @IsIn(roles,{each:true}) roles!:string[];
  @IsOptional() @IsInt() @Min(1) id_piloto?:number;
+}
+class EditUserDto {
+ @IsString() @Length(3,50) username!:string;
+ @IsString() @Length(1,100) nombres!:string;
+ @IsBoolean() estado!:boolean;
+ @IsOptional() @IsString() @Length(12,72) password?:string;
 }
 @Injectable()
 export class Catalog {
@@ -71,6 +77,7 @@ export class Catalog {
     if(await tx.recorridos.count({where:{id_linea:lid,estado:{in:['PROGRAMADO','EN_CURSO']}}}))throw new BadRequestException('Finaliza los recorridos pendientes antes de modificar la ruta.');
    }
    if(name==='estaciones'&&id&&data.estado===false&&await tx.linea_estacion.count({where:{id_estacion:old?.id_estacion}}))throw new BadRequestException('La estación pertenece a una línea.');
+   if(name==='pilotos'&&id&&data.estado===false&&await tx.recorridos.count({where:{id_piloto:old.id_piloto,estado:{in:['PROGRAMADO','EN_CURSO']}}}))throw new BadRequestException('Finaliza o cancela sus recorridos antes de desactivar al piloto.');
    if(name==='parqueos'&&id){
     const used=await tx.bus_parqueo_historial.count({where:{id_parqueo:old.id_parqueo,fecha_fin:null}});
     if((data.estado===false&&used>0)||(data.capacidad!==undefined&&data.capacidad<used))throw new BadRequestException('El parqueo tiene buses asignados.');
@@ -91,8 +98,29 @@ export class Catalog {
   });
  }
  async users(actor:Actor){authorize(actor,['ADMINISTRADOR']);return this.db.usuarios.findMany({select:{id_usuario:true,username:true,nombres:true,estado:true,id_piloto:true,usuario_rol:{include:{roles:true}}}});}
+ async editUser(id:string,body:EditUserDto,actor:Actor){
+  authorize(actor,['ADMINISTRADOR']);
+  if(!/^\d+$/.test(id)||!Number.isSafeInteger(Number(id)))throw new BadRequestException('Usuario inválido.');
+  if(!body.username.trim()||!body.nombres.trim())throw new BadRequestException('Completa usuario y nombre.');
+  if(body.password&&Buffer.byteLength(body.password)>72)throw new BadRequestException('La contraseña no debe superar 72 bytes.');
+  const password_hash=body.password?await hash(body.password,12):undefined;
+  return this.db.$transaction(async tx=>{
+   await tx.$queryRaw`SELECT id_usuario FROM usuarios ORDER BY id_usuario FOR UPDATE`;
+   const old=await tx.usuarios.findUnique({where:{id_usuario:Number(id)}});if(!old)throw new NotFoundException('Usuario no encontrado.');
+   if(Number(id)===actor.id_usuario&&!body.estado)throw new BadRequestException('No puedes desactivar tu propia cuenta.');
+   if(await tx.usuarios.findFirst({where:{username:body.username.trim(),id_usuario:{not:Number(id)}}}))throw new BadRequestException('Ese nombre de usuario ya está registrado.');
+   const result=await tx.usuarios.update({where:{id_usuario:Number(id)},data:{username:body.username.trim(),nombres:body.nombres.trim(),estado:body.estado,password_hash},select:{id_usuario:true,username:true,nombres:true,estado:true}});
+   await tx.bitacora.create({data:{id_usuario:actor.id_usuario,accion:'EDITAR_USUARIO',tabla_afectada:'usuarios',registro_id:BigInt(id),detalle:password_hash?'Datos actualizados y contraseña restablecida':'Datos actualizados'}});return result;
+  });
+ }
  async createUser(body:UserDto,actor:Actor){
   authorize(actor,['ADMINISTRADOR']);
+  body.username=body.username.trim();body.nombres=body.nombres.trim();
+  if(!body.username||!body.nombres)throw new BadRequestException('Completa usuario y nombre.');
+  if(await this.db.usuarios.findUnique({where:{username:body.username}}))throw new BadRequestException('Ese nombre de usuario ya está registrado.');
+  if(body.id_piloto&&!body.roles.includes('PILOTO'))throw new BadRequestException('Solo vincula un piloto cuando selecciones el rol PILOTO.');
+  if(body.id_piloto&&!await this.db.pilotos.findFirst({where:{id_piloto:body.id_piloto,estado:true}}))throw new BadRequestException('Selecciona un piloto activo.');
+  if(body.id_piloto&&await this.db.usuarios.findUnique({where:{id_piloto:body.id_piloto}}))throw new BadRequestException('El piloto ya tiene una cuenta vinculada.');
   if(Buffer.byteLength(body.password,'utf8')>72)throw new BadRequestException('Contraseña demasiado larga.');
   if(body.roles.includes('PILOTO')&&!body.id_piloto)throw new BadRequestException('Vincula el usuario con su piloto.');
   const password_hash=await hash(body.password,12);
@@ -110,5 +138,6 @@ export class CatalogController {
  @Post('catalogos/:name') create(@Param('name') name:string,@Body() body:any,@Req() req:any){return this.catalog.save(name,undefined,body,req.actor);}
  @Patch('catalogos/:name/:id') edit(@Param('name') name:string,@Param('id') id:string,@Body() body:any,@Req() req:any){return this.catalog.save(name,id,body,req.actor);}
  @Get('usuarios') users(@Req() req:any){return this.catalog.users(req.actor);}
+ @Patch('usuarios/:id') editUser(@Param('id') id:string,@Body() body:EditUserDto,@Req() req:any){return this.catalog.editUser(id,body,req.actor);}
  @Post('usuarios') user(@Body() body:UserDto,@Req() req:any){return this.catalog.createUser(body,req.actor);}
 }

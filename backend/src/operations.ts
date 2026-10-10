@@ -15,6 +15,7 @@ class BusDto {
  @IsInt() @Min(1) id_linea!:number;
  @IsInt() @Min(1) id_parqueo!:number;
 }
+class PilotBusDto { @IsInt() @Min(1) id_bus!:number; }
 class CapacityDto { @IsInt() @Min(1) @Max(150) capacidad_maxima!:number; }
 class AssignmentDto { @IsInt() @Min(1) id_linea!:number; @IsInt() @Min(1) id_parqueo!:number; }
 class TripDto {
@@ -133,10 +134,25 @@ export class Operations {
   if(park?.id_parqueo!==body.id_parqueo){await this.parking(tx,body.id_parqueo);await tx.bus_parqueo_historial.updateMany({where:{id_bus:busId,fecha_fin:null},data:{fecha_fin:new Date()}});await tx.bus_parqueo_historial.create({data:{id_bus:busId,id_parqueo:body.id_parqueo,fecha_inicio:new Date()}});}
   await this.audit(tx,actor,'REASIGNAR_BUS','buses',busId);return {ok:true};
  });}
+ async pilots(actor:Actor){authorize(actor,supervisors);
+  return this.db.$queryRaw`SELECT p.*, pb.id_bus, b.codigo AS bus_codigo, b.estado AS bus_estado, l.id_linea, l.nombre AS ruta_nombre, l.estado AS ruta_activa FROM pilotos p LEFT JOIN piloto_bus pb ON pb.id_piloto=p.id_piloto LEFT JOIN buses b ON b.id_bus=pb.id_bus LEFT JOIN bus_linea_historial bl ON bl.id_bus=b.id_bus AND bl.fecha_fin IS NULL LEFT JOIN lineas l ON l.id_linea=bl.id_linea ORDER BY p.nombres, p.apellidos`;
+ }
+ async assignPilot(id:string,body:PilotBusDto,actor:Actor){authorize(actor,supervisors);return this.db.$transaction(async tx=>{
+  await this.infra(tx);const pid=Number(bid(id));
+  if(!await tx.pilotos.findFirst({where:{id_piloto:pid,estado:true}}))fail('Selecciona un piloto activo.');
+  if(!await tx.buses.findFirst({where:{id_bus:body.id_bus,estado:'ACTIVO'}}))fail('Selecciona un bus activo.');
+  const line=await tx.bus_linea_historial.findFirst({where:{id_bus:body.id_bus,fecha_fin:null},include:{lineas:true}});
+  if(!line?.lineas.estado)fail('El bus necesita una ruta activa.');
+  if(await tx.recorridos.count({where:{id_piloto:pid,id_bus:{not:body.id_bus},estado:{in:['PROGRAMADO','EN_CURSO']}}}))fail('Finaliza o cancela los recorridos del piloto en otro bus antes de reasignarlo.');
+  await tx.$executeRaw`INSERT INTO piloto_bus (id_piloto,id_bus) VALUES (${pid},${body.id_bus}) ON DUPLICATE KEY UPDATE id_bus=${body.id_bus}`;
+  await this.audit(tx,actor,'ASIGNAR_BUS_PILOTO','pilotos',pid,`Bus ${body.id_bus}; línea ${line.id_linea}`);return {ok:true};
+ });}
  async trips(actor:Actor){return this.db.recorridos.findMany({where:actor.roles.length===1&&actor.roles.includes('PILOTO')?{id_piloto:actor.id_piloto??0}:{},include:{buses:true,lineas:true,pilotos:{select:{nombres:true,apellidos:true}}},orderBy:{id_recorrido:'desc'},take:200});}
  async createTrip(body:TripDto,actor:Actor){authorize(actor,supervisors);return this.db.$transaction(async tx=>{
   await this.infra(tx);const date=new Date(body.fecha+'T00:00:00Z');if(Number.isNaN(date.getTime())||date.toISOString().slice(0,10)!==body.fecha)fail('Fecha inválida.');
   const bus=await tx.buses.findUnique({where:{id_bus:body.id_bus}});if(bus?.estado!=='ACTIVO')fail('El bus no está activo.');
+  const pilotAssignment:any[]=await tx.$queryRaw`SELECT id_bus FROM piloto_bus WHERE id_piloto=${body.id_piloto}`;
+  if(pilotAssignment[0]?.id_bus!==body.id_bus)fail('Asigna este bus al piloto desde Pilotos antes de programar el recorrido.');
   const {departure,arrival}=scheduleWindow(body.fecha,body.hora_salida,body.llegada_estimada);
   const conflicts=await tx.recorridos.findMany({where:{estado:{in:['PROGRAMADO','EN_CURSO']},OR:[{id_bus:body.id_bus},{id_piloto:body.id_piloto}]}});
   for(const other of conflicts){
@@ -308,6 +324,8 @@ export class Operations {
 @Controller() @UseGuards(AuthGuard)
 export class OperationsController {
  constructor(private o:Operations){}
+ @Get('pilotos') pilots(@Req() r:any){return this.o.pilots(r.actor);}
+ @Post('pilotos/:id/asignar') assignPilot(@Param('id') id:string,@Body() b:PilotBusDto,@Req() r:any){return this.o.assignPilot(id,b,r.actor);}
  @Get('tarifa') fare(){return this.o.fare();}
  @Post('tarifa') setFare(@Body() b:FareDto,@Req() r:any){return this.o.setFare(b,r.actor);}
  @Get('dashboard') dashboard(@Req() r:any){return this.o.dashboard(r.actor);}

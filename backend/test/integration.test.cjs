@@ -70,6 +70,8 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
  await t.test('Programación copia estaciones y valida fecha y piloto',async()=>{
   const b={id_bus:fixture.bus.id_bus,id_piloto:fixture.pilot.id_piloto,fecha:'2026-09-29',hora_salida:'06:00',llegada_estimada:'2026-09-29T08:00'};
   assert.equal((await request('recorridos','POST',{...b,fecha:'2026-02-31'},admin)).status,400);
+  assert.equal((await request('recorridos','POST',b,admin)).status,400);
+  await ok(`pilotos/${fixture.pilot.id_piloto}/asignar`,'POST',{id_bus:fixture.bus.id_bus});
   fixture.trip=await ok('recorridos','POST',b);
   const data=await ok(`recorridos/${fixture.trip.id_recorrido}/asientos`);fixture.seats=data.seats;
   assert.equal(data.stops.length,2);assert.equal(data.seats.length,4);
