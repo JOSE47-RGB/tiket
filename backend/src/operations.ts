@@ -33,6 +33,7 @@ class TicketDto {
  @IsOptional() @IsInt() @Min(1) id_metodo_pago?:number;
  @IsOptional() @IsString() @Matches(/^\d{1,18}$/) id_tarjeta?:string;
 }
+class FareDto { @IsString() @Matches(/^\d{1,6}(\.\d{1,2})?$/) precio!:string; }
 class PaymentDto {
  @IsInt() @Min(1) id_metodo_pago!:number;
  @IsOptional() @IsString() @Matches(/^\d{1,18}$/) id_tarjeta?:string;
@@ -48,6 +49,16 @@ class SeatDto { @IsIn(['HABILITADO','FUERA_SERVICIO']) estado!:'HABILITADO'|'FUE
 @Injectable()
 export class Operations {
  constructor(private db:Db){}
+ async fare(tx:any=this.db){
+  const rows=await tx.$queryRaw`SELECT precio FROM configuracion_tarifa WHERE id=1`;
+  const precio=rows[0]?.precio?.toString()??process.env.TICKET_PRICE??'1.00';
+  if(!/^\d{1,6}(\.\d{1,2})?$/.test(precio))fail('Tarifa no configurada.');
+  return {precio:Number(precio).toFixed(2)};
+ }
+ async setFare(body:FareDto,actor:Actor){authorize(actor,['ADMINISTRADOR']);return this.db.$transaction(async tx=>{
+  await tx.$executeRaw`INSERT INTO configuracion_tarifa (id,precio) VALUES (1,${body.precio}) ON DUPLICATE KEY UPDATE precio=${body.precio}`;
+  await this.audit(tx,actor,'CAMBIAR_TARIFA','configuracion_tarifa',1,body.precio);return this.fare(tx);
+ });}
  async audit(tx:any,actor:Actor,accion:string,table:string,id?:bigint|number,detalle?:string){await tx.bitacora.create({data:{id_usuario:actor.id_usuario,accion,tabla_afectada:table,registro_id:id===undefined?undefined:BigInt(id),detalle}});}
  async infra(tx:any){await tx.$queryRaw`SELECT id_linea FROM lineas ORDER BY id_linea FOR UPDATE`;}
  async tripLock(tx:any,id:bigint,actor:Actor){
@@ -171,7 +182,7 @@ export class Operations {
   if(await tx.tickets.count({where:{id_recorrido:trip.id_recorrido,id_asiento:body.id_asiento,estado:{in:['RESERVADO','EMITIDO']}}}))fail('Este asiento acaba de ser ocupado. Selecciona otro.');
   if(!await tx.pasajeros.findUnique({where:{id_pasajero:body.id_pasajero}}))fail('Pasajero inexistente.');
   if(await tx.tickets.count({where:{id_recorrido:trip.id_recorrido,id_pasajero:body.id_pasajero,estado:{in:['RESERVADO','EMITIDO']}}}))fail('El pasajero ya tiene un asiento en este recorrido.');
-  const price=process.env.TICKET_PRICE??'1.00';if(!/^\d{1,6}(\.\d{1,2})?$/.test(price))fail('Tarifa no configurada.');
+  const price=(await this.fare(tx)).precio;
   const ticket=await tx.tickets.create({data:{...body,id_tarjeta:undefined,id_metodo_pago:undefined,id_operador:actor.id_usuario,id_recorrido:trip.id_recorrido,numero_ticket:'TM-'+randomUUID(),codigo_validacion:randomUUID(),precio:price,reservado_hasta:body.estado==='RESERVADO'?new Date(Date.now()+Number(process.env.RESERVATION_MINUTES??5)*60000):null} as any});
   if(body.estado==='EMITIDO')await this.pay(tx,ticket,body as PaymentDto,actor);
   await this.audit(tx,actor,body.estado==='RESERVADO'?'RESERVAR_ASIENTO':'EMITIR_TICKET','tickets',ticket.id_ticket);return ticket;
@@ -297,6 +308,8 @@ export class Operations {
 @Controller() @UseGuards(AuthGuard)
 export class OperationsController {
  constructor(private o:Operations){}
+ @Get('tarifa') fare(){return this.o.fare();}
+ @Post('tarifa') setFare(@Body() b:FareDto,@Req() r:any){return this.o.setFare(b,r.actor);}
  @Get('dashboard') dashboard(@Req() r:any){return this.o.dashboard(r.actor);}
  @Get('buses') buses(@Req() r:any){return this.o.buses(r.actor);}
  @Post('buses/:id/capacidad') capacity(@Param('id') id:string,@Body() b:CapacityDto,@Req() r:any){return this.o.resizeBus(id,b,r.actor);}
