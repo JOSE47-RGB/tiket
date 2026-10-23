@@ -4,7 +4,7 @@ Sistema de control de transporte basado en el documento ENTREGa_NO 5. Backend Ne
 
 ## Instalación local
 
-La estructura `transmetro_db` ya fue importada en el servidor local que administra phpMyAdmin (`localhost:3306`). Contiene 29 tablas: las 28 del documento y pasajeros. La conexión de la aplicación se configura en `backend/.env`.
+La estructura `transmetro_db` ya fue importada en el servidor local que administra phpMyAdmin (`localhost:3306`). El modelo actual contiene 31 tablas de aplicación: las 28 iniciales, pasajeros, configuracion_tarifa y piloto_bus; Prisma añade su tabla de migraciones. La conexión de la aplicación se configura en `backend/.env`.
 
 El archivo `conexion_local.sql` prepara una cuenta dedicada con permisos SELECT, INSERT y UPDATE únicamente sobre `transmetro_db`. En el entorno local de desarrollo, la cuenta y sus permisos ya fueron configurados. En otra instalación, un administrador debe crear una cuenta propia y conceder los permisos necesarios. Contiene una contraseña generada: no compartirlo ni publicarlo. El archivo `.env` debe permanecer privado.
 
@@ -28,9 +28,9 @@ phpMyAdmin: http://localhost/phpMyAdmin/index.php?route=/database/structure&db=t
 3. Agregar buses desde Flota, con una línea y un parqueo obligatorios. Sus asientos se generan según la capacidad.
 4. Activar la línea cuando tenga entre uno y dos buses por estación.
 5. Crear usuarios y asignar los operadores a estaciones; registrar los métodos de pago y los pasajeros.
-6. Programar un recorrido y abrir Control de abordaje para seleccionar asientos y emitir tickets.
+6. Asignar cada piloto a su bus desde Pilotos y programar un recorrido y abrir Control de abordaje para seleccionar asientos y emitir tickets.
 
-La tarifa, la duración de reserva y la espera por baja ocupación se configuran mediante `TICKET_PRICE`, `RESERVATION_MINUTES` y `LOW_OCCUPANCY_WAIT_MINUTES`. Los valores iniciales son Q1.00, 5 minutos y 5 minutos; deben confirmarse para la operación real. Los asientos se refrescan cada 5 segundos. Los pagos son registros internos: no hay integración con un proveedor bancario. No incluye GPS ni mapas, conforme al documento.
+La tarifa se edita desde Tarifa y recargas y conserva el precio histórico de cada boleto. `TICKET_PRICE` es el valor de respaldo si aún no hay tarifa guardada. La duración de reserva y la espera por baja ocupación se configuran mediante `RESERVATION_MINUTES` y `LOW_OCCUPANCY_WAIT_MINUTES`. Los valores iniciales son Q1.00, 5 minutos y 5 minutos; deben confirmarse para la operación real. Los asientos se refrescan cada 5 segundos. Los pagos son registros internos: no hay integración con un proveedor bancario. No incluye GPS ni mapas, conforme al documento.
 
 ## Base de datos
 
@@ -59,3 +59,7 @@ El repositorio contiene el código y las migraciones; no incluye la base de dato
 La instalación SQL inicial debe complementarse con `actualizar_horarios.sql` si se utiliza la importación manual. Para una base nueva administrada por Prisma, aplicar todas las migraciones en orden.
 
 El despliegue en Railway está pendiente de configuración y validación. Subir el repositorio a GitHub no publica automáticamente la aplicación ni copia los datos de MariaDB.
+
+## Evidencia de entrega
+
+Consultar [validación de los puntos 12 al 17](docs/entrega/VALIDACION.md) para resultados comprobados, correcciones y pasos de reproducción. El cierre documental no sustituye la firma del responsable ni las pruebas con usuarios reales.

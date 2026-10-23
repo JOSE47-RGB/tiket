@@ -1,0 +1,27 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": MySQL database "transmetro_test" at "127.0.0.1:33319"
+
+5 migrations found in prisma/migrations
+
+Applying migration `202609290001_initial`
+Applying migration `202609290002_operational`
+Applying migration `202610060001_schedules`
+Applying migration `202610090001_tarifa`
+Applying migration `202610090002_pilot_bus`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 202609290001_initial/
+    └─ migration.sql
+  └─ 202609290002_operational/
+    └─ migration.sql
+  └─ 202610060001_schedules/
+    └─ migration.sql
+  └─ 202610090001_tarifa/
+    └─ migration.sql
+  └─ 202610090002_pilot_bus/
+    └─ migration.sql
+      
+All migrations have been successfully applied.

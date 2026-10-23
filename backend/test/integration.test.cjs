@@ -40,7 +40,7 @@ before(async()=>{
   for(let i=0;i<8;i++)fixture.passengers.push(await tx.pasajeros.create({data:{nombres:'Pasajero prueba '+i}}));
  },{timeout:20000});
  server=spawn(process.execPath,['dist/main.js'],{env:{...process.env,DATABASE_URL:url,JWT_SECRET:randomBytes(32).toString('hex'),HOST:'127.0.0.1',PORT:String(port),LOW_OCCUPANCY_WAIT_MINUTES:'5',TICKET_PRICE:'1.00'}});
- server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);
+ server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>{output+=d;process.stderr.write(d)});
  let ready=false;
  for(let i=0;i<60;i++){try{const r=await fetch(base+'/health');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}
  assert.ok(ready,output);
@@ -53,6 +53,14 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal((await request('catalogos/pasajeros','POST',{nombres:'Sin CSRF'},admin,false)).status,403);
   assert.equal((await request('usuarios','POST',{username:'intruso',password:'Contraseña123456',nombres:'X',roles:['ADMINISTRADOR']},operator)).status,403);
   assert.deepEqual(await ok('recorridos','GET',undefined,pilotUser),[]);
+ });
+ await t.test('Usuarios: crear, evitar duplicados y desactivar',async()=>{
+  const data={username:'nuevo'+suffix,password,nombres:'Usuario de prueba',roles:['OPERADOR']};
+  const user=await ok('usuarios','POST',data);
+  assert.equal((await request('usuarios','POST',data,admin)).status,400);
+  await ok(`usuarios/${user.id_usuario}`,'PATCH',{username:data.username,nombres:'Editado',estado:false});
+  assert.equal((await request('auth/login','POST',{username:data.username,password})).status,401);
+  assert.equal((await request(`usuarios/${fixture.admin.id_usuario}`,'PATCH',{username:fixture.admin.username,nombres:'Admin',estado:false},admin)).status,400);
  });
  await t.test('Catálogos validan números, campos y activación prematura',async()=>{
   assert.equal((await request(`catalogos/lineas/${fixture.line.id_linea}`,'PATCH',{estado:'1'},admin)).status,400);
@@ -67,12 +75,20 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   await ok(`catalogos/lineas/${fixture.line.id_linea}`,'PATCH',{estado:'1'});
   assert.equal(await db.bus_parqueo_historial.count({where:{id_bus:fixture.bus.id_bus,fecha_fin:null}}),1);
  });
+ await t.test('Capacidad editable de 20 y 50 asientos',async()=>{
+  for(const capacidad_maxima of [20,50]){
+   await ok(`buses/${fixture.bus2.id_bus}/capacidad`,'POST',{capacidad_maxima});
+   assert.equal(await db.asientos.count({where:{id_bus:fixture.bus2.id_bus,estado_operativo:'HABILITADO'}}),capacidad_maxima);
+  }
+ });
  await t.test('Programación copia estaciones y valida fecha y piloto',async()=>{
   const b={id_bus:fixture.bus.id_bus,id_piloto:fixture.pilot.id_piloto,fecha:'2026-09-29',hora_salida:'06:00',llegada_estimada:'2026-09-29T08:00'};
   assert.equal((await request('recorridos','POST',{...b,fecha:'2026-02-31'},admin)).status,400);
   assert.equal((await request('recorridos','POST',b,admin)).status,400);
   await ok(`pilotos/${fixture.pilot.id_piloto}/asignar`,'POST',{id_bus:fixture.bus.id_bus});
   fixture.trip=await ok('recorridos','POST',b);
+  assert.equal((await request('recorridos','POST',b,admin)).status,400);
+  assert.equal((await request(`buses/${fixture.bus.id_bus}/capacidad`,'POST',{capacidad_maxima:20},admin)).status,400);
   const data=await ok(`recorridos/${fixture.trip.id_recorrido}/asientos`);fixture.seats=data.seats;
   assert.equal(data.stops.length,2);assert.equal(data.seats.length,4);
   assert.equal((await request(`recorridos/${fixture.trip.id_recorrido}/asientos`,'GET',undefined,pilotUser)).status,400);
@@ -92,6 +108,13 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal(results.filter(r=>r.status===201).length,1,JSON.stringify(results.map(r=>({status:r.status,data:r.data}))));
   assert.equal(await db.tickets.count({where:{id_recorrido:BigInt(fixture.trip.id_recorrido),estado:'EMITIDO'}}),1);
   fixture.ticket=results.find(r=>r.status===201).data;
+ });
+ await t.test('Tarifa editable conserva el precio de ventas anteriores',async()=>{
+  await ok('tarifa','POST',{precio:'2.50'});
+  assert.equal((await ok('tarifa')).precio,'2.50');
+  assert.equal(Number((await db.tickets.findUnique({where:{id_ticket:BigInt(fixture.ticket.id_ticket)}})).precio),1);
+  assert.equal((await request('tarifa','POST',{precio:'3.00'},operator)).status,403);
+  await ok('tarifa','POST',{precio:'1.00'});
  });
  await t.test('Cancelación libera asiento y deja efectivo por devolver',async()=>{
   await ok(`tickets/${fixture.ticket.id_ticket}/cancelar`,'POST');

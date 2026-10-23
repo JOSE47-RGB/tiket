@@ -1,0 +1,167 @@
+TAP version 13
+# Subtest: Flujos integrales con MariaDB 10.11
+    # Subtest: Autenticación, CSRF y roles
+    ok 1 - Autenticación, CSRF y roles
+      ---
+      duration_ms: 31.259619
+      type: 'test'
+      ...
+    # Subtest: Usuarios: crear, evitar duplicados y desactivar
+    ok 2 - Usuarios: crear, evitar duplicados y desactivar
+      ---
+      duration_ms: 426.535028
+      type: 'test'
+      ...
+    # Subtest: Catálogos validan números, campos y activación prematura
+    ok 3 - Catálogos validan números, campos y activación prematura
+      ---
+      duration_ms: 39.190235
+      type: 'test'
+      ...
+    # Subtest: Flota exige parqueo y respeta máximo y mínimo por línea
+    ok 4 - Flota exige parqueo y respeta máximo y mínimo por línea
+      ---
+      duration_ms: 51.886629
+      type: 'test'
+      ...
+    # Subtest: Capacidad editable de 20 y 50 asientos
+    ok 5 - Capacidad editable de 20 y 50 asientos
+      ---
+      duration_ms: 26.671678
+      type: 'test'
+      ...
+    # Subtest: Programación copia estaciones y valida fecha y piloto
+    ok 6 - Programación copia estaciones y valida fecha y piloto
+      ---
+      duration_ms: 86.283183
+      type: 'test'
+      ...
+    # Subtest: El operador solo emite desde su estación
+    ok 7 - El operador solo emite desde su estación
+      ---
+      duration_ms: 22.429832
+      type: 'test'
+      ...
+    # Subtest: Cobro insuficiente revierte ticket, asiento y pago
+    ok 8 - Cobro insuficiente revierte ticket, asiento y pago
+      ---
+      duration_ms: 21.629869
+      type: 'test'
+      ...
+    # Subtest: Concurrencia: solo un operador obtiene el mismo asiento
+    ok 9 - Concurrencia: solo un operador obtiene el mismo asiento
+      ---
+      duration_ms: 34.039764
+      type: 'test'
+      ...
+    # Subtest: Tarifa editable conserva el precio de ventas anteriores
+    ok 10 - Tarifa editable conserva el precio de ventas anteriores
+      ---
+      duration_ms: 29.621197
+      type: 'test'
+      ...
+    # Subtest: Cancelación libera asiento y deja efectivo por devolver
+    ok 11 - Cancelación libera asiento y deja efectivo por devolver
+      ---
+      duration_ms: 28.219704
+      type: 'test'
+      ...
+    # Subtest: Débito de tarjeta y reembolso atómicos
+    ok 12 - Débito de tarjeta y reembolso atómicos
+      ---
+      duration_ms: 42.209987
+      type: 'test'
+      ...
+    # Subtest: Reserva caduca y no se puede cobrar después
+    ok 13 - Reserva caduca y no se puede cobrar después
+      ---
+      duration_ms: 47.571025
+      type: 'test'
+      ...
+    # Subtest: Asiento fuera de servicio y origen/destino inválidos
+    ok 14 - Asiento fuera de servicio y origen/destino inválidos
+      ---
+      duration_ms: 47.710666
+      type: 'test'
+      ...
+    # Subtest: No permite iniciar sin llegada ni sin espera por baja ocupación
+    ok 15 - No permite iniciar sin llegada ni sin espera por baja ocupación
+      ---
+      duration_ms: 38.12717
+      type: 'test'
+      ...
+    # Subtest: Capacidad completa impide duplicaciones y libera al llegar al destino
+    ok 16 - Capacidad completa impide duplicaciones y libera al llegar al destino
+      ---
+      duration_ms: 166.823772
+      type: 'test'
+      ...
+    # Subtest: Cambio de parqueo conserva historial y asignación única
+    ok 17 - Cambio de parqueo conserva historial y asignación única
+      ---
+      duration_ms: 17.782915
+      type: 'test'
+      ...
+    # Subtest: Alerta de sobrecupo: >150%, sin duplicación y resolución
+    ok 18 - Alerta de sobrecupo: >150%, sin duplicación y resolución
+      ---
+      duration_ms: 45.486209
+      type: 'test'
+      ...
+    # Subtest: Acceso con guardia obligatorio y relevo sin quedar descubierto
+    ok 19 - Acceso con guardia obligatorio y relevo sin quedar descubierto
+      ---
+      duration_ms: 43.785826
+      type: 'test'
+      ...
+    # Subtest: Recarga financiera y bitácora
+    ok 20 - Recarga financiera y bitácora
+      ---
+      duration_ms: 27.564644
+      type: 'test'
+      ...
+    1..20
+ok 1 - Flujos integrales con MariaDB 10.11
+  ---
+  duration_ms: 2010.875081
+  type: 'test'
+  ...
+# Subtest: Asignar piloto guarda bus y registra ruta en bitácora
+ok 2 - Asignar piloto guarda bus y registra ruta en bitácora
+  ---
+  duration_ms: 1.852675
+  type: 'test'
+  ...
+# Subtest: Piloto o bus inactivo, ruta no activa y viajes incompatibles no se guardan
+ok 3 - Piloto o bus inactivo, ruta no activa y viajes incompatibles no se guardan
+  ---
+  duration_ms: 0.777544
+  type: 'test'
+  ...
+# Subtest: Operador no puede asignar pilotos
+ok 4 - Operador no puede asignar pilotos
+  ---
+  duration_ms: 0.237885
+  type: 'test'
+  ...
+# Subtest: Convierte horarios de Guatemala y admite llegada al día siguiente
+ok 5 - Convierte horarios de Guatemala y admite llegada al día siguiente
+  ---
+  duration_ms: 1.292989
+  type: 'test'
+  ...
+# Subtest: Rechaza fechas imposibles, horas inválidas y llegada anterior o igual
+ok 6 - Rechaza fechas imposibles, horas inválidas y llegada anterior o igual
+  ---
+  duration_ms: 0.499324
+  type: 'test'
+  ...
+1..6
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2133.306385

@@ -35,7 +35,9 @@ async function main(){
    await tx.asientos.createMany({data:Array.from({length:32},(_,j)=>({id_bus:bus.id_bus,numero_asiento:String(j+1)}))});
   }
   await tx.lineas.update({where:{id_linea:line.id_linea},data:{estado:true}});
-  const trip=await tx.recorridos.create({data:{id_linea:line.id_linea,id_bus:first.id_bus,id_piloto:pilot.id_piloto,fecha:new Date(new Date().toISOString().slice(0,10))}});
+  await tx.$executeRaw`INSERT INTO piloto_bus (id_piloto,id_bus) VALUES (${pilot.id_piloto},${first.id_bus})`;
+  const day=new Date().toISOString().slice(0,10);
+  const trip=await tx.recorridos.create({data:{id_linea:line.id_linea,id_bus:first.id_bus,id_piloto:pilot.id_piloto,fecha:new Date(day),salida_programada:new Date(day+'T18:00:00Z'),llegada_estimada:new Date(day+'T20:00:00Z')}});
   for(let i=0;i<stations.length;i++)await tx.recorrido_estacion.create({data:{id_recorrido:trip.id_recorrido,id_estacion:stations[i].id_estacion,orden:i+1}});
   await tx.metodos_pago.createMany({data:[{nombre:'Efectivo'},{nombre:'Tarjeta'}]});
   await tx.tarjetas.create({data:{numero_tarjeta:'DEMO-001',saldo:25}});
