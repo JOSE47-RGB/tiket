@@ -1,0 +1,198 @@
+{
+  "verified_tables": 32,
+  "all_match": true,
+  "tables": [
+    {
+      "table": "accesos",
+      "source_checksum": "2001915589",
+      "restored_checksum": "2001915589",
+      "match": true
+    },
+    {
+      "table": "alertas",
+      "source_checksum": "0",
+      "restored_checksum": "0",
+      "match": true
+    },
+    {
+      "table": "asientos",
+      "source_checksum": "543244283",
+      "restored_checksum": "543244283",
+      "match": true
+    },
+    {
+      "table": "bitacora",
+      "source_checksum": "567865825",
+      "restored_checksum": "567865825",
+      "match": true
+    },
+    {
+      "table": "buses",
+      "source_checksum": "1558041697",
+      "restored_checksum": "1558041697",
+      "match": true
+    },
+    {
+      "table": "bus_linea_historial",
+      "source_checksum": "1918833960",
+      "restored_checksum": "1918833960",
+      "match": true
+    },
+    {
+      "table": "bus_parqueo_historial",
+      "source_checksum": "1918833960",
+      "restored_checksum": "1918833960",
+      "match": true
+    },
+    {
+      "table": "configuracion_tarifa",
+      "source_checksum": "0",
+      "restored_checksum": "0",
+      "match": true
+    },
+    {
+      "table": "estaciones",
+      "source_checksum": "1983422266",
+      "restored_checksum": "1983422266",
+      "match": true
+    },
+    {
+      "table": "guardias",
+      "source_checksum": "449652690",
+      "restored_checksum": "449652690",
+      "match": true
+    },
+    {
+      "table": "guardia_acceso",
+      "source_checksum": "2958613817",
+      "restored_checksum": "2958613817",
+      "match": true
+    },
+    {
+      "table": "lineas",
+      "source_checksum": "1338977232",
+      "restored_checksum": "1338977232",
+      "match": true
+    },
+    {
+      "table": "linea_estacion",
+      "source_checksum": "2043137916",
+      "restored_checksum": "2043137916",
+      "match": true
+    },
+    {
+      "table": "metodos_pago",
+      "source_checksum": "1294832776",
+      "restored_checksum": "1294832776",
+      "match": true
+    },
+    {
+      "table": "municipalidades",
+      "source_checksum": "4217394417",
+      "restored_checksum": "4217394417",
+      "match": true
+    },
+    {
+      "table": "municipalidad_linea",
+      "source_checksum": "3679485726",
+      "restored_checksum": "3679485726",
+      "match": true
+    },
+    {
+      "table": "operador_estacion",
+      "source_checksum": "0",
+      "restored_checksum": "0",
+      "match": true
+    },
+    {
+      "table": "pagos",
+      "source_checksum": "714623952",
+      "restored_checksum": "714623952",
+      "match": true
+    },
+    {
+      "table": "parqueos",
+      "source_checksum": "398228030",
+      "restored_checksum": "398228030",
+      "match": true
+    },
+    {
+      "table": "pasajeros",
+      "source_checksum": "456998749",
+      "restored_checksum": "456998749",
+      "match": true
+    },
+    {
+      "table": "pilotos",
+      "source_checksum": "2541859794",
+      "restored_checksum": "2541859794",
+      "match": true
+    },
+    {
+      "table": "piloto_bus",
+      "source_checksum": "3679485726",
+      "restored_checksum": "3679485726",
+      "match": true
+    },
+    {
+      "table": "piloto_formacion",
+      "source_checksum": "0",
+      "restored_checksum": "0",
+      "match": true
+    },
+    {
+      "table": "recargas",
+      "source_checksum": "0",
+      "restored_checksum": "0",
+      "match": true
+    },
+    {
+      "table": "recorridos",
+      "source_checksum": "1291667180",
+      "restored_checksum": "1291667180",
+      "match": true
+    },
+    {
+      "table": "recorrido_estacion",
+      "source_checksum": "3115095041",
+      "restored_checksum": "3115095041",
+      "match": true
+    },
+    {
+      "table": "roles",
+      "source_checksum": "3343404524",
+      "restored_checksum": "3343404524",
+      "match": true
+    },
+    {
+      "table": "tarjetas",
+      "source_checksum": "3384925661",
+      "restored_checksum": "3384925661",
+      "match": true
+    },
+    {
+      "table": "tickets",
+      "source_checksum": "2695503713",
+      "restored_checksum": "2695503713",
+      "match": true
+    },
+    {
+      "table": "usuarios",
+      "source_checksum": "3181073859",
+      "restored_checksum": "3181073859",
+      "match": true
+    },
+    {
+      "table": "usuario_rol",
+      "source_checksum": "3679485726",
+      "restored_checksum": "3679485726",
+      "match": true
+    },
+    {
+      "table": "_prisma_migrations",
+      "source_checksum": "4025260901",
+      "restored_checksum": "4025260901",
+      "match": true
+    }
+  ]
+}

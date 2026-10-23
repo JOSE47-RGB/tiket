@@ -5,4 +5,4 @@ export class Db extends PrismaClient implements OnModuleInit, OnModuleDestroy {
  async onModuleInit(){ await this.$connect(); }
  async onModuleDestroy(){ await this.$disconnect(); }
 }
-export type Actor = { id_usuario:number; username:string; roles:string[]; id_piloto:number|null };
+export type Actor = { id_usuario:number; username:string; tutorial_visto?:boolean; roles:string[]; id_piloto:number|null };

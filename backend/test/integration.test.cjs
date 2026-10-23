@@ -9,7 +9,7 @@ const enabled=Boolean(url);
 if(enabled&&!new URL(url).pathname.endsWith('_test'))throw new Error('Las pruebas requieren una base cuyo nombre termine en _test.');
 const db=enabled?new PrismaClient({datasources:{db:{url}}}):null;
 const port=Number(process.env.TEST_PORT??3108),base=`http://127.0.0.1:${port}/api`;
-let server,admin,operator,pilotUser,finance,fixture={},output='';
+let server,admin,operator,pilotUser,finance,supervisor,security,fixture={},output='';
 const suffix=randomBytes(4).toString('hex'),password='Test-'+randomBytes(14).toString('hex');
 async function request(path,method='GET',body,session,csrf=true){
  const res=await fetch(base+'/'+path,{method,headers:{'Content-Type':'application/json',...(session?{Cookie:session.cookie,...(csrf?{'X-CSRF-Token':session.csrf}:{})}:{})},body:body?JSON.stringify(body):undefined});
@@ -24,7 +24,7 @@ before(async()=>{
   for(const nombre of ['ADMINISTRADOR','OPERADOR','SUPERVISOR','FINANCIERO','PILOTO','SEGURIDAD'])await tx.roles.upsert({where:{nombre},update:{},create:{nombre}});
   fixture.pilot=await tx.pilotos.create({data:{nombres:'Prueba',apellidos:suffix}});
   fixture.otherPilot=await tx.pilotos.create({data:{nombres:'Otro',apellidos:suffix}});
-  for(const [tag,role] of [['admin','ADMINISTRADOR'],['operator','OPERADOR'],['finance','FINANCIERO'],['pilot','PILOTO']]){
+  for(const [tag,role] of [['admin','ADMINISTRADOR'],['operator','OPERADOR'],['finance','FINANCIERO'],['pilot','PILOTO'],['supervisor','SUPERVISOR'],['security','SEGURIDAD']]){
    fixture[tag==='pilot'?'pilotAccount':tag]=await tx.usuarios.create({data:{username:tag+suffix,password_hash:await hash(password,4),...(tag==='pilot'?{id_piloto:fixture.otherPilot.id_piloto}:{}),usuario_rol:{create:{roles:{connect:{nombre:role}}}}}});
   }
   fixture.line=await tx.lineas.create({data:{codigo:'T'+suffix,nombre:'Línea prueba',estado:false}});
@@ -40,11 +40,11 @@ before(async()=>{
   for(let i=0;i<8;i++)fixture.passengers.push(await tx.pasajeros.create({data:{nombres:'Pasajero prueba '+i}}));
  },{timeout:20000});
  server=spawn(process.execPath,['dist/main.js'],{env:{...process.env,DATABASE_URL:url,JWT_SECRET:randomBytes(32).toString('hex'),HOST:'127.0.0.1',PORT:String(port),LOW_OCCUPANCY_WAIT_MINUTES:'5',TICKET_PRICE:'1.00'}});
- server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);
+ server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>{output+=d;process.stderr.write(d)});
  let ready=false;
  for(let i=0;i<60;i++){try{const r=await fetch(base+'/health');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}
  assert.ok(ready,output);
- admin=await login('admin'+suffix);operator=await login('operator'+suffix);finance=await login('finance'+suffix);pilotUser=await login('pilot'+suffix);
+ admin=await login('admin'+suffix);operator=await login('operator'+suffix);finance=await login('finance'+suffix);pilotUser=await login('pilot'+suffix);supervisor=await login('supervisor'+suffix);security=await login('security'+suffix);
 });
 after(async()=>{if(server){server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));}if(db)await db.$disconnect();});
 test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
@@ -53,6 +53,33 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal((await request('catalogos/pasajeros','POST',{nombres:'Sin CSRF'},admin,false)).status,403);
   assert.equal((await request('usuarios','POST',{username:'intruso',password:'Contraseña123456',nombres:'X',roles:['ADMINISTRADOR']},operator)).status,403);
   assert.deepEqual(await ok('recorridos','GET',undefined,pilotUser),[]);
+ });
+ await t.test('Supervisor y seguridad: permisos y límites por rol',async()=>{
+  assert.equal((await request('buses','GET',undefined,supervisor)).status,200);
+  assert.equal((await request('tarifa','POST',{precio:'2.00'},supervisor)).status,403);
+  assert.equal((await request('reportes/alertas','GET',undefined,security)).status,200);
+  assert.equal((await request('reportes/tickets','GET',undefined,security)).status,403);
+  assert.equal((await request('buses','GET',undefined,security)).status,403);
+ });
+ await t.test('Tutorial por cuenta: primer acceso, omitir y persistir entre sesiones',async()=>{
+  assert.equal((await ok('auth/me')).tutorial_visto,false);
+  assert.equal((await request('auth/tutorial','POST',{},admin,false)).status,403);
+  assert.equal((await request('auth/tutorial','POST')).status,401);
+  await ok('auth/tutorial','POST',{});
+  await ok('auth/tutorial','POST',{}); // Repetir no altera datos operativos.
+  const second=await login('admin'+suffix);
+  assert.equal((await ok('auth/me','GET',undefined,second)).tutorial_visto,true);
+  assert.equal((await ok('auth/me','GET',undefined,operator)).tutorial_visto,false);
+  await ok('auth/tutorial','POST',{},operator);
+  assert.equal((await ok('auth/me','GET',undefined,operator)).tutorial_visto,true);
+ });
+ await t.test('Usuarios: crear, evitar duplicados y desactivar',async()=>{
+  const data={username:'nuevo'+suffix,password,nombres:'Usuario de prueba',roles:['OPERADOR']};
+  const user=await ok('usuarios','POST',data);
+  assert.equal((await request('usuarios','POST',data,admin)).status,400);
+  await ok(`usuarios/${user.id_usuario}`,'PATCH',{username:data.username,nombres:'Editado',estado:false});
+  assert.equal((await request('auth/login','POST',{username:data.username,password})).status,401);
+  assert.equal((await request(`usuarios/${fixture.admin.id_usuario}`,'PATCH',{username:fixture.admin.username,nombres:'Admin',estado:false},admin)).status,400);
  });
  await t.test('Catálogos validan números, campos y activación prematura',async()=>{
   assert.equal((await request(`catalogos/lineas/${fixture.line.id_linea}`,'PATCH',{estado:'1'},admin)).status,400);
@@ -67,12 +94,20 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   await ok(`catalogos/lineas/${fixture.line.id_linea}`,'PATCH',{estado:'1'});
   assert.equal(await db.bus_parqueo_historial.count({where:{id_bus:fixture.bus.id_bus,fecha_fin:null}}),1);
  });
+ await t.test('Capacidad editable de 20 y 50 asientos',async()=>{
+  for(const capacidad_maxima of [20,50]){
+   await ok(`buses/${fixture.bus2.id_bus}/capacidad`,'POST',{capacidad_maxima});
+   assert.equal(await db.asientos.count({where:{id_bus:fixture.bus2.id_bus,estado_operativo:'HABILITADO'}}),capacidad_maxima);
+  }
+ });
  await t.test('Programación copia estaciones y valida fecha y piloto',async()=>{
   const b={id_bus:fixture.bus.id_bus,id_piloto:fixture.pilot.id_piloto,fecha:'2026-09-29',hora_salida:'06:00',llegada_estimada:'2026-09-29T08:00'};
   assert.equal((await request('recorridos','POST',{...b,fecha:'2026-02-31'},admin)).status,400);
   assert.equal((await request('recorridos','POST',b,admin)).status,400);
   await ok(`pilotos/${fixture.pilot.id_piloto}/asignar`,'POST',{id_bus:fixture.bus.id_bus});
   fixture.trip=await ok('recorridos','POST',b);
+  assert.equal((await request('recorridos','POST',b,admin)).status,400);
+  assert.equal((await request(`buses/${fixture.bus.id_bus}/capacidad`,'POST',{capacidad_maxima:20},admin)).status,400);
   const data=await ok(`recorridos/${fixture.trip.id_recorrido}/asientos`);fixture.seats=data.seats;
   assert.equal(data.stops.length,2);assert.equal(data.seats.length,4);
   assert.equal((await request(`recorridos/${fixture.trip.id_recorrido}/asientos`,'GET',undefined,pilotUser)).status,400);
@@ -92,6 +127,13 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal(results.filter(r=>r.status===201).length,1,JSON.stringify(results.map(r=>({status:r.status,data:r.data}))));
   assert.equal(await db.tickets.count({where:{id_recorrido:BigInt(fixture.trip.id_recorrido),estado:'EMITIDO'}}),1);
   fixture.ticket=results.find(r=>r.status===201).data;
+ });
+ await t.test('Tarifa editable conserva el precio de ventas anteriores',async()=>{
+  await ok('tarifa','POST',{precio:'2.50'});
+  assert.equal((await ok('tarifa')).precio,'2.50');
+  assert.equal(Number((await db.tickets.findUnique({where:{id_ticket:BigInt(fixture.ticket.id_ticket)}})).precio),1);
+  assert.equal((await request('tarifa','POST',{precio:'3.00'},operator)).status,403);
+  await ok('tarifa','POST',{precio:'1.00'});
  });
  await t.test('Cancelación libera asiento y deja efectivo por devolver',async()=>{
   await ok(`tickets/${fixture.ticket.id_ticket}/cancelar`,'POST');

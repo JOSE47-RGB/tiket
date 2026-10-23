@@ -117,7 +117,7 @@ export class Operations {
   const restored=seats.filter(s=>Number(s.numero_asiento)>bus.capacidad_maxima&&Number(s.numero_asiento)<=body.capacidad_maxima).map(s=>s.id_asiento);
   if(restored.length)await tx.asientos.updateMany({where:{id_asiento:{in:restored}},data:{estado_operativo:'HABILITADO'}});
   const updated=await tx.buses.update({where:{id_bus:busId},data:{capacidad_maxima:body.capacidad_maxima}});
-  await this.audit(tx,actor,'CAMBIAR_CAPACIDAD','buses',busId,`${bus.capacidad_maxima} → ${body.capacidad_maxima} asientos`);return updated;
+  await this.audit(tx,actor,'CAMBIAR_CAPACIDAD','buses',busId,`${bus.capacidad_maxima} a ${body.capacidad_maxima} asientos`);return updated;
  });}
  async assignBus(id:string,body:AssignmentDto,actor:Actor){authorize(actor,supervisors);return this.db.$transaction(async tx=>{
   await this.infra(tx);const busId=Number(bid(id));
@@ -152,7 +152,7 @@ export class Operations {
   await this.infra(tx);const date=new Date(body.fecha+'T00:00:00Z');if(Number.isNaN(date.getTime())||date.toISOString().slice(0,10)!==body.fecha)fail('Fecha inválida.');
   const bus=await tx.buses.findUnique({where:{id_bus:body.id_bus}});if(bus?.estado!=='ACTIVO')fail('El bus no está activo.');
   const pilotAssignment:any[]=await tx.$queryRaw`SELECT id_bus FROM piloto_bus WHERE id_piloto=${body.id_piloto}`;
-  if(pilotAssignment[0]?.id_bus!==body.id_bus)fail('Asigna este bus al piloto desde Pilotos antes de programar el recorrido.');
+  if(Number(pilotAssignment[0]?.id_bus)!==body.id_bus)fail('Asigna este bus al piloto desde Pilotos antes de programar el recorrido.');
   const {departure,arrival}=scheduleWindow(body.fecha,body.hora_salida,body.llegada_estimada);
   const conflicts=await tx.recorridos.findMany({where:{estado:{in:['PROGRAMADO','EN_CURSO']},OR:[{id_bus:body.id_bus},{id_piloto:body.id_piloto}]}});
   for(const other of conflicts){

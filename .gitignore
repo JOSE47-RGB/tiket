@@ -11,3 +11,7 @@ ACCESO_LOCAL.md
 *.key
 .DS_Store
 coverage/
+
+# Evidencias y cachés locales de pruebas de navegador
+frontend/test-results/
+frontend/playwright-report/

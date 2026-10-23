@@ -397,6 +397,7 @@ model usuarios {
   nombres           String?             @db.VarChar(100)
   apellidos         String?             @db.VarChar(100)
   estado            Boolean             @default(true)
+  tutorial_visto    Boolean             @default(false)
   ultimo_acceso     DateTime?           @db.DateTime(0)
   id_piloto         Int?                @unique(map: "id_piloto") @db.UnsignedInt
   bitacora          bitacora[]

@@ -1,0 +1,11 @@
+{
+  "base_commit": "e6385c8",
+  "changes": "Correcciones locales sin commit nuevo",
+  "sha256": {
+    "backend/src/operations.ts": "9c3cdc01d3c5c3ae52cfa54b80acf50847eb4aaa6aa439ee7b76e5d2baf09ed8",
+    "backend/scripts/seed.cjs": "2014f6b32c9415d0300a8e38291d02e2b8cd81b73fa26cd85c5f893a32b7c5bb",
+    "backend/test/integration.test.cjs": "2b92318f64c96ad00ce12b2456ac6f8d21e298a994e93f28efee61bdde2ce3de",
+    "backend/test/pilots.test.cjs": "e277bfa452975533b6ad0a98d30258497a68d04697c86e690db0343a906caa49",
+    "backend/test/schedule.test.cjs": "ee4bf968ac54bff2d737ad596475dff048c238573cc8cbab4238a6d54737db17"
+  }
+}

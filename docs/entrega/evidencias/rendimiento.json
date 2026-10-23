@@ -1,0 +1,24 @@
+{
+  "measuredAt": "2026-10-21T03:40:12.944Z",
+  "scope": "Carga puntual local; 20 solicitudes concurrentes por endpoint con una sesión, sin tráfico sostenido ni simulación de 20 personas.",
+  "results": [
+    {
+      "endpoint": "dashboard",
+      "concurrentRequests": 20,
+      "requests": 20,
+      "success": 20,
+      "p50_ms": 48.26,
+      "p95_ms": 52.36,
+      "max_ms": 52.63
+    },
+    {
+      "endpoint": "recorridos/1/asientos",
+      "concurrentRequests": 20,
+      "requests": 20,
+      "success": 20,
+      "p50_ms": 107.25,
+      "p95_ms": 171.77,
+      "max_ms": 178.47
+    }
+  ]
+}

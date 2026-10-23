@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import 'dotenv/config';
-import { ArgumentsHost, Controller, Get, Catch, ExceptionFilter, HttpException, Module, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ArgumentsHost, Controller, Get, Catch, ExceptionFilter, HttpException, Module, ValidationPipe } from '@nestjs/common';
 import { NestFactory, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -30,7 +30,7 @@ async function bootstrap(){
  app.setGlobalPrefix('api');
  app.use(cookieParser());
  app.use((req:any,res:any,next:any)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Cache-Control','no-store');next();});
- app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true}));
+ app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true,exceptionFactory:errors=>new BadRequestException({message:errors.map(e=>{const names:Record<string,string>={username:'usuario',password:'contraseña',id_pasajero:'pasajero',id_estacion_ingreso:'estación de ingreso',id_estacion_destino:'destino',id_metodo_pago:'forma de pago',id_tarjeta:'tarjeta',id_bus:'bus',id_piloto:'piloto',capacidad_maxima:'cantidad de asientos',fecha:'fecha',hora_salida:'hora de salida',llegada_estimada:'llegada estimada',monto:'monto',precio:'precio'};return 'Revisa el campo '+(names[e.property]??e.property.replaceAll('_',' '))+': completa un valor válido.'})})}));
  app.useGlobalFilters(new Errors());
  app.enableShutdownHooks();
  await app.listen(Number(process.env.PORT??3000),process.env.HOST??'0.0.0.0');
