@@ -9,7 +9,7 @@ const enabled=Boolean(url);
 if(enabled&&!new URL(url).pathname.endsWith('_test'))throw new Error('Las pruebas requieren una base cuyo nombre termine en _test.');
 const db=enabled?new PrismaClient({datasources:{db:{url}}}):null;
 const port=Number(process.env.TEST_PORT??3108),base=`http://127.0.0.1:${port}/api`;
-let server,admin,operator,pilotUser,finance,fixture={},output='';
+let server,admin,operator,pilotUser,finance,supervisor,security,fixture={},output='';
 const suffix=randomBytes(4).toString('hex'),password='Test-'+randomBytes(14).toString('hex');
 async function request(path,method='GET',body,session,csrf=true){
  const res=await fetch(base+'/'+path,{method,headers:{'Content-Type':'application/json',...(session?{Cookie:session.cookie,...(csrf?{'X-CSRF-Token':session.csrf}:{})}:{})},body:body?JSON.stringify(body):undefined});
@@ -24,7 +24,7 @@ before(async()=>{
   for(const nombre of ['ADMINISTRADOR','OPERADOR','SUPERVISOR','FINANCIERO','PILOTO','SEGURIDAD'])await tx.roles.upsert({where:{nombre},update:{},create:{nombre}});
   fixture.pilot=await tx.pilotos.create({data:{nombres:'Prueba',apellidos:suffix}});
   fixture.otherPilot=await tx.pilotos.create({data:{nombres:'Otro',apellidos:suffix}});
-  for(const [tag,role] of [['admin','ADMINISTRADOR'],['operator','OPERADOR'],['finance','FINANCIERO'],['pilot','PILOTO']]){
+  for(const [tag,role] of [['admin','ADMINISTRADOR'],['operator','OPERADOR'],['finance','FINANCIERO'],['pilot','PILOTO'],['supervisor','SUPERVISOR'],['security','SEGURIDAD']]){
    fixture[tag==='pilot'?'pilotAccount':tag]=await tx.usuarios.create({data:{username:tag+suffix,password_hash:await hash(password,4),...(tag==='pilot'?{id_piloto:fixture.otherPilot.id_piloto}:{}),usuario_rol:{create:{roles:{connect:{nombre:role}}}}}});
   }
   fixture.line=await tx.lineas.create({data:{codigo:'T'+suffix,nombre:'Línea prueba',estado:false}});
@@ -44,7 +44,7 @@ before(async()=>{
  let ready=false;
  for(let i=0;i<60;i++){try{const r=await fetch(base+'/health');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}
  assert.ok(ready,output);
- admin=await login('admin'+suffix);operator=await login('operator'+suffix);finance=await login('finance'+suffix);pilotUser=await login('pilot'+suffix);
+ admin=await login('admin'+suffix);operator=await login('operator'+suffix);finance=await login('finance'+suffix);pilotUser=await login('pilot'+suffix);supervisor=await login('supervisor'+suffix);security=await login('security'+suffix);
 });
 after(async()=>{if(server){server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));}if(db)await db.$disconnect();});
 test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
@@ -53,6 +53,13 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal((await request('catalogos/pasajeros','POST',{nombres:'Sin CSRF'},admin,false)).status,403);
   assert.equal((await request('usuarios','POST',{username:'intruso',password:'Contraseña123456',nombres:'X',roles:['ADMINISTRADOR']},operator)).status,403);
   assert.deepEqual(await ok('recorridos','GET',undefined,pilotUser),[]);
+ });
+ await t.test('Supervisor y seguridad: permisos y límites por rol',async()=>{
+  assert.equal((await request('buses','GET',undefined,supervisor)).status,200);
+  assert.equal((await request('tarifa','POST',{precio:'2.00'},supervisor)).status,403);
+  assert.equal((await request('reportes/alertas','GET',undefined,security)).status,200);
+  assert.equal((await request('reportes/tickets','GET',undefined,security)).status,403);
+  assert.equal((await request('buses','GET',undefined,security)).status,403);
  });
  await t.test('Tutorial por cuenta: primer acceso, omitir y persistir entre sesiones',async()=>{
   assert.equal((await ok('auth/me')).tutorial_visto,false);
