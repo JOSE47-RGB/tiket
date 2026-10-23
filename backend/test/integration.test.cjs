@@ -54,6 +54,18 @@ test('Flujos integrales con MariaDB 10.11',{skip:!enabled},async t=>{
   assert.equal((await request('usuarios','POST',{username:'intruso',password:'Contraseña123456',nombres:'X',roles:['ADMINISTRADOR']},operator)).status,403);
   assert.deepEqual(await ok('recorridos','GET',undefined,pilotUser),[]);
  });
+ await t.test('Tutorial por cuenta: primer acceso, omitir y persistir entre sesiones',async()=>{
+  assert.equal((await ok('auth/me')).tutorial_visto,false);
+  assert.equal((await request('auth/tutorial','POST',{},admin,false)).status,403);
+  assert.equal((await request('auth/tutorial','POST')).status,401);
+  await ok('auth/tutorial','POST',{});
+  await ok('auth/tutorial','POST',{}); // Repetir no altera datos operativos.
+  const second=await login('admin'+suffix);
+  assert.equal((await ok('auth/me','GET',undefined,second)).tutorial_visto,true);
+  assert.equal((await ok('auth/me','GET',undefined,operator)).tutorial_visto,false);
+  await ok('auth/tutorial','POST',{},operator);
+  assert.equal((await ok('auth/me','GET',undefined,operator)).tutorial_visto,true);
+ });
  await t.test('Usuarios: crear, evitar duplicados y desactivar',async()=>{
   const data={username:'nuevo'+suffix,password,nombres:'Usuario de prueba',roles:['OPERADOR']};
   const user=await ok('usuarios','POST',data);

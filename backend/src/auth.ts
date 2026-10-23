@@ -22,7 +22,7 @@ export class AuthGuard implements CanActivate {
    const data=await this.jwt.verifyAsync(req.cookies?.session ?? '', {algorithms:['HS256']});
    const user=await this.db.usuarios.findUnique({where:{id_usuario:Number(data.sub)},include:{usuario_rol:{include:{roles:true}}}});
    if(!user?.estado) throw new Error();
-   req.actor={id_usuario:user.id_usuario,username:user.username,id_piloto:user.id_piloto,roles:user.usuario_rol.map(r=>r.roles.nombre)};
+   req.actor={id_usuario:user.id_usuario,username:user.username,tutorial_visto:user.tutorial_visto,id_piloto:user.id_piloto,roles:user.usuario_rol.map(r=>r.roles.nombre)};
   } catch { throw new UnauthorizedException('Inicia sesión para continuar.'); }
   if(!['GET','HEAD','OPTIONS'].includes(req.method) && (!req.cookies.csrf || req.headers['x-csrf-token']!==req.cookies.csrf)) throw new ForbiddenException('Sesión de formulario inválida. Vuelve a iniciar sesión.');
   return true;
@@ -45,5 +45,9 @@ export class AuthController {
   return {username:user.username,roles:user.usuario_rol.map(r=>r.roles.nombre)};
  }
  @Get('me') @UseGuards(AuthGuard) me(@Req() req:any){return req.actor;}
+ @Post('tutorial') @UseGuards(AuthGuard) async tutorial(@Req() req:any){
+  await this.db.usuarios.update({where:{id_usuario:req.actor.id_usuario},data:{tutorial_visto:true}});
+  return {tutorial_visto:true};
+ }
  @Post('logout') @UseGuards(AuthGuard) logout(@Res({passthrough:true}) res:Response){res.clearCookie('session',{path:'/'});res.clearCookie('csrf',{path:'/'});return {ok:true};}
 }
