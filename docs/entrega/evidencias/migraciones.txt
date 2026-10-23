@@ -23,5 +23,5 @@ migrations/
     └─ migration.sql
   └─ 202610090002_pilot_bus/
     └─ migration.sql
-      
+
 All migrations have been successfully applied.
